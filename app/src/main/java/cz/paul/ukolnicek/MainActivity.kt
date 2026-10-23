@@ -113,12 +113,15 @@ class MainActivity : AppCompatActivity() {
 
         adapter = TaskAdapter()
         val list = findViewById<ListView>(R.id.list)
+        // Kalendář je nahoře v seznamu (posouvá se spolu s úkoly)
+        monthCal = MonthCalendar(this) { day -> selectedDay = day; refresh() }
+        list.addHeaderView(monthCal.view, null, false)
         list.adapter = adapter
         list.setOnItemClickListener { _, _, pos, _ ->
-            (rows[pos] as? Row.Item)?.let { editTask(it.task) }
+            (rows.getOrNull(pos - list.headerViewsCount) as? Row.Item)?.let { editTask(it.task) }
         }
         list.setOnItemLongClickListener { _, _, pos, _ ->
-            (rows[pos] as? Row.Item)?.let { confirmDelete(it.task) }; true
+            (rows.getOrNull(pos - list.headerViewsCount) as? Row.Item)?.let { confirmDelete(it.task) }; true
         }
         findViewById<ExtendedFloatingActionButton>(R.id.add).setOnClickListener { editTask(null) }
         findViewById<ImageButton>(R.id.menu).setOnClickListener { showMenu(it) }
@@ -137,7 +140,8 @@ class MainActivity : AppCompatActivity() {
         TaskStore.all(this).filter { it.repeat.isNotEmpty() && !it.done && it.eventMillis <= System.currentTimeMillis() }
             .forEach { Reminders.schedule(this, it) }   // schedule() je posune na další termín
         tasks = TaskStore.all(this)
-        rows = buildRows(tasks)
+        monthCal.render(tasks)
+        rows = selectedDay?.let { buildDayRows(tasks, it) } ?: buildRows(tasks)
         adapter.notifyDataSetChanged()
         findViewById<View>(R.id.empty).visibility = if (tasks.isEmpty()) View.VISIBLE else View.GONE
 
@@ -158,10 +162,28 @@ class MainActivity : AppCompatActivity() {
 
     sealed class Row {
         data class Header(val text: String) : Row()
-        data class Item(val task: Task, val late: Boolean) : Row()
+        /** at = termín, který se má ukázat (u opakovaných úkolů konkrétní výskyt) */
+        data class Item(val task: Task, val late: Boolean, val at: Long = task.eventMillis) : Row()
     }
 
     private var rows: List<Row> = emptyList()
+    private lateinit var monthCal: MonthCalendar
+    private var selectedDay: Calendar? = null
+
+    /** Úkoly jednoho dne vybraného v kalendáři (i budoucí výskyty opakovaných). */
+    private fun buildDayRows(list: List<Task>, day: Calendar): List<Row> {
+        val start = (day.clone() as Calendar).apply { MonthCalendar.clearTime(this) }
+        val end = (start.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, 1) }
+        val now = System.currentTimeMillis()
+        val items = MonthCalendar.occurrences(list, start.timeInMillis, end.timeInMillis)
+            .map { (t, at) -> Row.Item(t, !t.done && at < now, at) }
+        val title = SimpleDateFormat("EEEE d. MMMM", cs).format(start.time).replaceFirstChar { it.uppercase() }
+        val holiday = if (Recurrence.isCzechHoliday(start)) " · svátek" else ""
+        val out = mutableListOf<Row>(Row.Header("$title$holiday  (${items.size})  ·  klepni znovu na den = vše"))
+        out += items
+        if (items.isEmpty()) out += Row.Header("Žádné úkoly")
+        return out
+    }
 
     private fun dayStart(offsetDays: Int): Long = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
@@ -562,7 +584,7 @@ class MainActivity : AppCompatActivity() {
             title.paintFlags = if (t.done) title.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
             else title.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
 
-            sub.text = "🗓 " + niceTime(t.eventMillis)
+            sub.text = "🗓 " + niceTime(item.at)
             sub.setTextColor(ContextCompat.getColor(this@MainActivity,
                 if (item.late) R.color.late else R.color.teal))
 
