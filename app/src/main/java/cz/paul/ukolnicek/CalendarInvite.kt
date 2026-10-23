@@ -37,7 +37,7 @@ object CalendarInvite {
         "END:VTIMEZONE"
     )
 
-    private fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\;")
+    private fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\\;")
         .replace(",", "\\,").replace("\n", "\\n")
 
     /** Řádky delší než 75 znaků se podle normy zalamují (pokračování začíná mezerou). */

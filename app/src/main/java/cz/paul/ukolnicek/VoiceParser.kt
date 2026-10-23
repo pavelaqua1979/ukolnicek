@@ -45,14 +45,20 @@ object VoiceParser {
         cut(Regex("${START}(?:každ(?:ý|é|ou)\\s+)?(první|poslední)\\s+pracovní\\s+den(?:\\s+v\\s+měsíci)?$END", ci))?.let {
             repeat = if (it.groupValues[1].lowercase() == "první") "MWF" else "MWL"
         }
-        if (repeat.isEmpty()) cut(Regex("${START}každ(?:ý|é|ou)\\s+(první|druh[éýo]u?|třetí|čtvrt[éýo]u?|poslední)\\s+($dayNames)(?:\\s+v\\s+měsíci)?$END", ci))?.let {
+        if (repeat.isEmpty()) cut(Regex("${START}každ(?:ý|é|ou)\\s+(první|druh[éýo]u?|třetí|čtvrt[éýo]u?|poslední)\\s+($dayNames)(\\s+v\\s+měsíci)?$END", ci))?.let {
             val ord = it.groupValues[1].lowercase()
             val dow = days.getValue(it.groupValues[2].lowercase())
+            val inMonth = it.groupValues[3].isNotBlank()
             val n = when {
                 ord == "první" -> 1; ord.startsWith("druh") -> 2; ord == "třetí" -> 3
                 ord.startsWith("čtvrt") -> 4; else -> 0
             }
-            repeat = if (n == 0) "ML:$dow" else "MN:$n:$dow"
+            repeat = when {
+                // „každou druhou středu“ = ob týden; „každou druhou středu v měsíci“ = 2. středa v měsíci
+                n == 2 && !inMonth -> "W2:$dow"
+                n == 0 -> "ML:$dow"
+                else -> "MN:$n:$dow"
+            }
         }
         if (repeat.isEmpty()) cut(Regex("${START}každ(?:ý|é|ou)\\s+($dayNames)$END", ci))?.let {
             repeat = "W:" + days.getValue(it.groupValues[1].lowercase())
@@ -138,7 +144,7 @@ object VoiceParser {
                 .replace("M:?", "M:" + cal.get(Calendar.DAY_OF_MONTH))
             // pravidla s pevným dnem (každé pondělí, poslední pondělí, pracovní den) určí datum sama
             val kind = Recurrence.kind(repeat)
-            val t = if (kind in setOf("W", "MN", "ML", "MWF", "MWL") && !dateSet) {
+            val t = if (kind in setOf("W", "W2", "MN", "ML", "MWF", "MWL") && !dateSet) {
                 val from = (now.clone() as Calendar).apply {
                     set(Calendar.HOUR_OF_DAY, cal.get(Calendar.HOUR_OF_DAY))
                     set(Calendar.MINUTE, cal.get(Calendar.MINUTE))
