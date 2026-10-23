@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Ukolnicek" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">#1E7F6E</item>
+        <item name="colorSecondary">#1E7F6E</item>
+    </style>
+</resources>
