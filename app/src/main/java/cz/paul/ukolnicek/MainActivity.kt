@@ -134,6 +134,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
+        TaskStore.all(this).filter { it.repeat.isNotEmpty() && !it.done && it.eventMillis <= System.currentTimeMillis() }
+            .forEach { Reminders.schedule(this, it) }   // schedule() je posune na další termín
         tasks = TaskStore.all(this)
         rows = buildRows(tasks)
         adapter.notifyDataSetChanged()
@@ -258,6 +260,7 @@ class MainActivity : AppCompatActivity() {
         val btnDate = v.findViewById<Button>(R.id.date)
         val btnTime = v.findViewById<Button>(R.id.time)
         val spMode = v.findViewById<Spinner>(R.id.remindMode)
+        val spRepeat = v.findViewById<Spinner>(R.id.repeat)
         val customRow = v.findViewById<View>(R.id.customRow)
         val btnRDate = v.findViewById<Button>(R.id.rdate)
         val btnRTime = v.findViewById<Button>(R.id.rtime)
@@ -265,11 +268,13 @@ class MainActivity : AppCompatActivity() {
         val cbNotify = v.findViewById<CheckBox>(R.id.notify)
         val cbWa = v.findViewById<CheckBox>(R.id.wa)
         val cbMail = v.findViewById<CheckBox>(R.id.mail)
+        val cbCal = v.findViewById<CheckBox>(R.id.cal)
         val prefs = TaskStore.prefs(this)
 
         val ev = Calendar.getInstance()   // kdy to nastane
         val rc = Calendar.getInstance()   // vlastní čas upomínky
         var modeIndex: Int
+        var repeatCode = existing?.repeat ?: ""
 
         if (existing != null) {
             ev.timeInMillis = existing.eventMillis
@@ -278,6 +283,7 @@ class MainActivity : AppCompatActivity() {
             cbNotify.isChecked = existing.notify
             cbWa.isChecked = existing.whatsapp
             cbMail.isChecked = existing.email
+            cbCal.isChecked = existing.calendar
             val diffMin = (existing.eventMillis - existing.remindMillis) / 60000
             modeIndex = remindOptions.indexOfFirst { it.second == diffMin }.let { if (it < 0) customIndex else it }
         } else {
@@ -289,6 +295,7 @@ class MainActivity : AppCompatActivity() {
         if (voice != null) {
             etTitle.setText(voice.title)
             voice.timeMillis?.let { ev.timeInMillis = it }
+            if (voice.repeat.isNotEmpty()) repeatCode = voice.repeat
         }
         ev.set(Calendar.SECOND, 0); ev.set(Calendar.MILLISECOND, 0)
         rc.set(Calendar.SECOND, 0); rc.set(Calendar.MILLISECOND, 0)
@@ -298,7 +305,27 @@ class MainActivity : AppCompatActivity() {
             return if (off < 0) rc.timeInMillis else ev.timeInMillis - off * 60000
         }
 
+        // ---- Opakování: nabídka závisí na zvoleném datu (den v týdnu, pořadí v měsíci) ----
+        var repeatOpts: List<Pair<String, String>> = emptyList()
+        fun rebuildRepeat() {
+            val opts = Recurrence.options(ev.timeInMillis)
+            if (opts.map { it.first } != repeatOpts.map { it.first }) {
+                repeatOpts = opts
+                spRepeat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, opts.map { it.first })
+            }
+            // stejné pravidlo, nebo aspoň stejný druh (např. „každý týden“ po změně dne)
+            val k = Recurrence.kind(repeatCode)
+            var idx = repeatOpts.indexOfFirst { it.second == repeatCode }
+            if (idx < 0) idx = repeatOpts.indexOfFirst { Recurrence.kind(it.second) == k }
+            if (idx < 0 && k == "ML") idx = repeatOpts.indexOfFirst { Recurrence.kind(it.second) == "MN" }
+            if (idx < 0 && k == "MN") idx = repeatOpts.indexOfFirst { Recurrence.kind(it.second) == "ML" }
+            if (idx < 0) idx = 0
+            repeatCode = repeatOpts[idx].second
+            if (spRepeat.selectedItemPosition != idx) spRepeat.setSelection(idx)
+        }
+
         fun updateUi() {
+            rebuildRepeat()
             btnDate.text = fmtDate.format(ev.time)
             btnTime.text = fmtTime.format(ev.time)
             btnRDate.text = fmtDate.format(rc.time)
@@ -309,7 +336,23 @@ class MainActivity : AppCompatActivity() {
                 r <= System.currentTimeMillis() -> "⚠ Čas upomínky už proběhl"
                 r > ev.timeInMillis -> "Upomínka: ${Reminders.whenText(r)} (až po události)"
                 else -> "Upomínka: ${Reminders.whenText(r)}"
+            } + if (repeatCode.isNotEmpty()) "\n🔁 ${Recurrence.describe(repeatCode)}" else ""
+        }
+
+        spRepeat.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, view: View?, pos: Int, id: Long) {
+                if (pos !in repeatOpts.indices) return
+                val code = repeatOpts[pos].second
+                if (code == repeatCode) return   // programové nastavení výběru, nic se nemění
+                repeatCode = code
+                // Pravidla s pevným dnem posunou datum na první odpovídající den (od zvoleného měsíce)
+                if (Recurrence.kind(repeatCode) in setOf("MWF", "MWL")) {
+                    val from = (ev.clone() as Calendar)
+                    ev.timeInMillis = Recurrence.firstAtOrAfter(from, repeatCode, System.currentTimeMillis())
+                }
+                updateUi()
             }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
         }
 
         spMode.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, remindOptions.map { it.first })
@@ -339,7 +382,9 @@ class MainActivity : AppCompatActivity() {
                 val current = etTitle.text.toString().trim()
                 etTitle.setText(if (current.isEmpty()) r.title else "$current ${r.title.replaceFirstChar { it.lowercase() }}")
                 etTitle.setSelection(etTitle.text.length)
-                r.timeMillis?.let { ev.timeInMillis = it; updateUi() }
+                if (r.repeat.isNotEmpty()) repeatCode = r.repeat
+                r.timeMillis?.let { ev.timeInMillis = it }
+                updateUi()
             }
         }
 
@@ -347,10 +392,12 @@ class MainActivity : AppCompatActivity() {
             if (checked && !Senders.waConfigured(this))
                 Toast.makeText(this, "Nejdřív nastav WhatsApp v menu ⋮ → Nastavení", Toast.LENGTH_LONG).show()
         }
-        cbMail.setOnCheckedChangeListener { _, checked ->
+        val needMail = { _: android.widget.CompoundButton, checked: Boolean ->
             if (checked && !Senders.mailConfigured(this))
                 Toast.makeText(this, "Nejdřív nastav e-mail v menu ⋮ → Nastavení", Toast.LENGTH_LONG).show()
         }
+        cbMail.setOnCheckedChangeListener(needMail)
+        cbCal.setOnCheckedChangeListener(needMail)
 
         val dlg = AlertDialog.Builder(this)
             .setTitle(if (existing == null) "Nový úkol" else "Upravit úkol")
@@ -372,15 +419,26 @@ class MainActivity : AppCompatActivity() {
                     notify = cbNotify.isChecked,
                     whatsapp = cbWa.isChecked,
                     email = cbMail.isChecked,
-                    done = false
+                    done = false,
+                    calendar = cbCal.isChecked,
+                    repeat = repeatCode
                 )
                 TaskStore.upsert(this, task)
                 Reminders.schedule(this, task)
+                // Kalendář: nová/změněná událost -> pozvánka, odškrtnuto -> zrušení
+                if (task.calendar) {
+                    val changed = existing == null || !existing.calendar ||
+                        existing.title != task.title || existing.eventMillis != task.eventMillis ||
+                        existing.remindMillis != task.remindMillis || existing.repeat != task.repeat
+                    if (changed) CalendarInvite.enqueue(this, task, "REQUEST")
+                } else if (existing?.calendar == true) {
+                    CalendarInvite.enqueue(this, existing, "CANCEL")
+                }
                 prefs.edit().putInt(TaskStore.KEY_LAST_REMIND_MODE, modeIndex).apply()
                 when {
-                    !task.notify && !task.whatsapp && !task.email ->
+                    !task.notify && !task.whatsapp && !task.email && !task.calendar ->
                         Toast.makeText(this, "Uloženo bez upozornění", Toast.LENGTH_SHORT).show()
-                    task.remindMillis <= System.currentTimeMillis() ->
+                    task.repeat.isEmpty() && task.remindMillis <= System.currentTimeMillis() ->
                         Toast.makeText(this, "Čas upomínky už proběhl — upomínka nepřijde", Toast.LENGTH_LONG).show()
                 }
                 dlg.dismiss()
@@ -396,6 +454,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(task.title)
             .setPositiveButton("Smazat") { _, _ ->
                 Reminders.cancel(this, task.id)
+                if (task.calendar && !task.done) CalendarInvite.enqueue(this, task, "CANCEL")
                 TaskStore.delete(this, task.id)
                 refresh()
             }
@@ -404,6 +463,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleDone(task: Task, done: Boolean) {
+        if (done && task.repeat.isNotEmpty()) {
+            // Opakovaný úkol se neodškrtne natrvalo — přeskočí na další termín
+            val next = Reminders.skipToNext(this, task)
+            Reminders.schedule(this, next)
+            Toast.makeText(this, "Hotovo ✓  Další termín: ${Reminders.whenText(next.eventMillis)}", Toast.LENGTH_LONG).show()
+            refresh()
+            return
+        }
         val t = task.copy(done = done)
         TaskStore.upsert(this, t)
         Reminders.schedule(this, t) // hotový se zruší, znovu otevřený naplánuje
@@ -419,6 +486,7 @@ class MainActivity : AppCompatActivity() {
             R.id.phone to TaskStore.KEY_WA_PHONE,
             R.id.apikey to TaskStore.KEY_WA_APIKEY,
             R.id.mailTo to TaskStore.KEY_MAIL_TO,
+            R.id.calTo to TaskStore.KEY_CAL_TO,
             R.id.mailUser to TaskStore.KEY_MAIL_USER,
             R.id.mailPass to TaskStore.KEY_MAIL_PASS,
             R.id.mailHost to TaskStore.KEY_MAIL_HOST
@@ -502,12 +570,13 @@ class MainActivity : AppCompatActivity() {
                 if (t.notify) add("notifikace")
                 if (t.whatsapp) add("WhatsApp")
                 if (t.email) add("e-mail")
+                if (t.calendar) add("kalendář")
             }
             sub2.text = when {
-                channels.isEmpty() -> "bez upomínky"
                 t.done -> "hotovo"
+                channels.isEmpty() -> "bez upomínky"
                 else -> "🔔 " + niceTime(t.remindMillis) + " · " + channels.joinToString(", ")
-            }
+            } + if (t.repeat.isNotEmpty() && !t.done) "\n🔁 " + Recurrence.describe(t.repeat) else ""
 
             cb.setOnCheckedChangeListener(null)
             cb.isChecked = t.done

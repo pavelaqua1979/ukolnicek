@@ -1,4 +1,4 @@
-# Úkolníček 1.2
+# Úkolníček 1.5
 
 Úkolníček pro Android: úkol, **kdy to nastane**, **kdy upozornit** a kanály upozornění
 (notifikace, WhatsApp, e-mail na přednastavenou adresu).
@@ -33,6 +33,25 @@ Alternativa: otevřít složku v Android Studiu a dát Run.
   2. Na myaccount.google.com/apppasswords vytvoř heslo aplikace (16 znaků).
   3. Zadej Gmail adresu a toto heslo → Test e-mailu.
 - Jiný poskytovatel: vyplň jeho SMTP server (musí podporovat SSL na portu 465), např. smtp.seznam.cz.
+
+## Opakované úkoly
+- V dialogu úkolu **Opakovat**: každý den, každý týden, každé 2 týdny, každý měsíc (stejný den),
+  každý měsíc n-tý / poslední den v týdnu (např. poslední pondělí), **první / poslední pracovní den v měsíci**
+  (po–pá bez českých státních svátků), každý rok.
+- Nabídka se řídí zvoleným datem — pro „poslední pondělí“ vyber datum, které je posledním pondělím v měsíci.
+- Hlasem: „každé poslední pondělí v 8 porada“, „první pracovní den zaplatit nájem“, „každý pátek v 7 vynést koš“,
+  „každou druhou středu v 15 trénink“, „každý měsíc…“, „každý rok…“.
+- Po proběhnutí termínu se úkol sám posune na další termín (i s upomínkou).
+  Odškrtnutí opakovaného úkolu = hotovo pro tento termín, přeskočí na další.
+- Pozvánka do Outlooku přenese i opakování. Pozor: Outlook nezná české svátky, u „pracovního dne“
+  ukáže první/poslední den po–pá (aplikace sama svátky přeskočí správně).
+
+## Pozvánka do kalendáře (Outlook)
+- U úkolu zaškrtni **Pozvánka do kalendáře (Outlook)**.
+- Na adresu z nastavení „Kam posílat pozvánky do kalendáře“ (prázdné = stejná jako pro upomínky) přijde pozvánka jako na schůzku → v Outlooku **Přijmout**
+  a událost je v kalendáři i s připomenutím podle volby „Kdy upozornit“.
+- Změna názvu/času úkolu pošle aktualizaci, smazání úkolu nebo odškrtnutí pošle zrušení události.
+- Pozvánka se posílá hned při uložení (ne až v čas upomínky).
 
 ## Jak upomínka funguje
 - V čas upomínky se hned ukáže notifikace.

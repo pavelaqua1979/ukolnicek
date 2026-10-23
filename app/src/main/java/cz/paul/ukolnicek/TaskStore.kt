@@ -14,7 +14,11 @@ data class Task(
     val notify: Boolean,
     val whatsapp: Boolean,
     val email: Boolean,
-    val done: Boolean = false
+    val done: Boolean = false,
+    /** Poslat pozvánku do kalendáře (Outlook) */
+    val calendar: Boolean = false,
+    /** Pravidlo opakování (viz Recurrence), "" = neopakovat */
+    val repeat: String = ""
 )
 
 /** Jednoduché úložiště úkolů a nastavení v SharedPreferences (JSON). */
@@ -26,10 +30,19 @@ object TaskStore {
     const val KEY_WA_PHONE = "wa_phone"
     const val KEY_WA_APIKEY = "wa_apikey"
     const val KEY_MAIL_TO = "mail_to"
+    const val KEY_CAL_TO = "cal_to"
     const val KEY_MAIL_USER = "mail_user"
     const val KEY_MAIL_PASS = "mail_pass"
     const val KEY_MAIL_HOST = "mail_host"
     const val KEY_LAST_REMIND_MODE = "last_remind_mode"
+    const val KEY_INSTALL_ID = "install_id"
+
+    /** Náhodné ID instalace — součást UID událostí v kalendáři */
+    fun installId(ctx: Context): String {
+        val p = prefs(ctx)
+        return p.getString(KEY_INSTALL_ID, null) ?: java.util.UUID.randomUUID().toString().take(8)
+            .also { p.edit().putString(KEY_INSTALL_ID, it).apply() }
+    }
 
     fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -48,7 +61,9 @@ object TaskStore {
                 notify = o.optBoolean("notify", true),
                 whatsapp = o.optBoolean("wa"),
                 email = o.optBoolean("mail"),
-                done = o.optBoolean("done")
+                done = o.optBoolean("done"),
+                calendar = o.optBoolean("cal"),
+                repeat = o.optString("rep", "")
             )
         }
         return list.sortedWith(compareBy<Task> { it.done }.thenBy { it.eventMillis }).toMutableList()
@@ -61,7 +76,7 @@ object TaskStore {
                 put("id", it.id); put("title", it.title)
                 put("event", it.eventMillis); put("remind", it.remindMillis)
                 put("notify", it.notify); put("wa", it.whatsapp); put("mail", it.email)
-                put("done", it.done)
+                put("done", it.done); put("cal", it.calendar); put("rep", it.repeat)
             })
         }
         prefs(ctx).edit().putString(KEY_TASKS, arr.toString()).apply()

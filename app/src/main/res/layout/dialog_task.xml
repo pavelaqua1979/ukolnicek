@@ -61,6 +61,19 @@
                 android:layout_weight="1" />
         </LinearLayout>
 
+        <!-- OPAKOVÁNÍ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Opakovat"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/repeat"
+            android:layout_width="match_parent"
+            android:layout_height="48dp" />
+
         <!-- KDY UPOZORNIT -->
         <TextView
             android:layout_width="wrap_content"
@@ -129,5 +142,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="E-mail" />
+
+        <CheckBox
+            android:id="@+id/cal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pozvánka do kalendáře (Outlook)" />
     </LinearLayout>
 </ScrollView>

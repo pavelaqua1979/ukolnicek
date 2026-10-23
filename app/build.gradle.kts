@@ -11,8 +11,8 @@ android {
         applicationId = "cz.paul.ukolnicek"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 6
+        versionName = "1.5"
     }
 
     // Pevný podpisový klíč v repozitáři -> každé nové APK jde nainstalovat přes starou verzi
