@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Ukolnicek" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#0F6E56</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#C9EEE0</item>
+        <item name="colorOnPrimaryContainer">#04342C</item>
+        <item name="colorSecondary">#0F6E56</item>
+        <item name="colorSecondaryContainer">#C9EEE0</item>
+        <item name="colorOnSecondaryContainer">#04342C</item>
+        <item name="android:colorBackground">#F3F6F5</item>
+        <item name="android:windowBackground">@color/bg</item>
+    </style>
+</resources>

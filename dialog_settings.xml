@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- WHATSAPP -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WhatsApp"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:alpha="0.7"
+            android:text="Jednorázová aktivace CallMeBot:\n1. Na callmebot.com (WhatsApp API) najdi číslo bota a ulož si ho do kontaktů\n2. Pošli mu zprávu: I allow callmebot to send me messages\n3. Odpoví API klíčem — zadej ho sem."
+            android:textIsSelectable="true" />
+
+        <EditText
+            android:id="@+id/phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Tvoje číslo, např. +420736685531"
+            android:inputType="phone" />
+
+        <EditText
+            android:id="@+id/apikey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="API klíč"
+            android:inputType="number" />
+
+        <Button
+            android:id="@+id/testWa"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Test WhatsApp" />
+
+        <!-- E-MAIL -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="E-mail"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/mailTo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Kam posílat upomínky"
+            android:inputType="textEmailAddress" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:alpha="0.7"
+            android:text="Odesílací účet (Gmail):\nV Google účtu zapni dvoufázové ověření, pak na myaccount.google.com/apppasswords vytvoř „heslo aplikace“ (16 znaků) a zadej ho sem — ne své běžné heslo."
+            android:textIsSelectable="true" />
+
+        <EditText
+            android:id="@+id/mailUser"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Odesílací Gmail adresa"
+            android:inputType="textEmailAddress" />
+
+        <EditText
+            android:id="@+id/mailPass"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Heslo aplikace"
+            android:inputType="textPassword" />
+
+        <EditText
+            android:id="@+id/mailHost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="SMTP server (prázdné = smtp.gmail.com)"
+            android:inputType="textUri" />
+
+        <Button
+            android:id="@+id/testMail"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Test e-mailu" />
+    </LinearLayout>
+</ScrollView>

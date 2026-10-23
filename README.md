@@ -1,4 +1,4 @@
-# Úkolníček 1.1
+# Úkolníček 1.2
 
 Úkolníček pro Android: úkol, **kdy to nastane**, **kdy upozornit** a kanály upozornění
 (notifikace, WhatsApp, e-mail na přednastavenou adresu).
