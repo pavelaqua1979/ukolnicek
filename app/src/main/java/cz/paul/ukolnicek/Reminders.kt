@@ -41,10 +41,15 @@ object Reminders {
         if (!task.notify && !task.whatsapp && !task.email) return
         val am = ctx.getSystemService(AlarmManager::class.java)
         val pi = pending(ctx, task.id)
-        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+        try {
+            if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, task.remindMillis, pi)
+            } else {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, task.remindMillis, pi)
+            }
+        } catch (_: SecurityException) {
+            // Přesné budíky nepovoleny — použij méně přesný (může se zpozdit o pár minut)
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, task.remindMillis, pi)
-        } else {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, task.remindMillis, pi)
         }
     }
 

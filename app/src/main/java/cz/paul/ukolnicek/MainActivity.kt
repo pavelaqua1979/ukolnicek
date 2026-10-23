@@ -11,8 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
@@ -31,6 +29,12 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import android.widget.PopupMenu
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -92,17 +96,32 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
-        title = "Úkolníček"
         Reminders.createChannel(this)
         askNotificationPermission()
+
+        // Obsah nesmí zasahovat pod horní lištu (hodiny) ani pod spodní navigační lištu
+        val root = findViewById<View>(R.id.root)
+        WindowInsetsControllerCompat(window, root).isAppearanceLightStatusBars = true
+        WindowInsetsControllerCompat(window, root).isAppearanceLightNavigationBars = true
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            v.setPadding(b.left, b.top, b.right, b.bottom)
+            insets
+        }
 
         adapter = TaskAdapter()
         val list = findViewById<ListView>(R.id.list)
         list.adapter = adapter
-        list.setOnItemClickListener { _, _, pos, _ -> editTask(tasks[pos]) }
-        list.setOnItemLongClickListener { _, _, pos, _ -> confirmDelete(tasks[pos]); true }
-        findViewById<FloatingActionButton>(R.id.add).setOnClickListener { editTask(null) }
+        list.setOnItemClickListener { _, _, pos, _ ->
+            (rows[pos] as? Row.Item)?.let { editTask(it.task) }
+        }
+        list.setOnItemLongClickListener { _, _, pos, _ ->
+            (rows[pos] as? Row.Item)?.let { confirmDelete(it.task) }; true
+        }
+        findViewById<ExtendedFloatingActionButton>(R.id.add).setOnClickListener { editTask(null) }
+        findViewById<ImageButton>(R.id.menu).setOnClickListener { showMenu(it) }
         findViewById<FloatingActionButton>(R.id.voice).setOnClickListener {
             listen { spoken -> editTask(null, VoiceParser.parse(spoken)) }
         }
@@ -116,8 +135,96 @@ class MainActivity : AppCompatActivity() {
 
     private fun refresh() {
         tasks = TaskStore.all(this)
+        rows = buildRows(tasks)
         adapter.notifyDataSetChanged()
         findViewById<View>(R.id.empty).visibility = if (tasks.isEmpty()) View.VISIBLE else View.GONE
+
+        val open = tasks.count { !it.done }
+        val late = tasks.count { !it.done && it.eventMillis < System.currentTimeMillis() }
+        val today = SimpleDateFormat("EEEE d. MMMM", cs).format(Date())
+        val count = when {
+            open == 0 -> "nic nečeká"
+            open == 1 -> "1 úkol"
+            open in 2..4 -> "$open úkoly"
+            else -> "$open úkolů"
+        }
+        findViewById<TextView>(R.id.summary).text =
+            "$today · $count" + if (late > 0) " · $late po termínu" else ""
+    }
+
+    // ---------- Skupiny v seznamu ----------
+
+    sealed class Row {
+        data class Header(val text: String) : Row()
+        data class Item(val task: Task, val late: Boolean) : Row()
+    }
+
+    private var rows: List<Row> = emptyList()
+
+    private fun dayStart(offsetDays: Int): Long = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        add(Calendar.DAY_OF_YEAR, offsetDays)
+    }.timeInMillis
+
+    private fun buildRows(list: List<Task>): List<Row> {
+        val now = System.currentTimeMillis()
+        val tomorrow = dayStart(1)
+        val dayAfter = dayStart(2)
+        val week = dayStart(7)
+        val groups = linkedMapOf<String, MutableList<Row.Item>>(
+            "Po termínu" to mutableListOf(), "Dnes" to mutableListOf(), "Zítra" to mutableListOf(),
+            "Příštích 7 dní" to mutableListOf(), "Později" to mutableListOf(), "Hotové" to mutableListOf()
+        )
+        for (t in list) {
+            val e = t.eventMillis
+            val key = when {
+                t.done -> "Hotové"
+                e < now -> "Po termínu"
+                e < tomorrow -> "Dnes"
+                e < dayAfter -> "Zítra"
+                e < week -> "Příštích 7 dní"
+                else -> "Později"
+            }
+            groups.getValue(key) += Row.Item(t, key == "Po termínu")
+        }
+        val out = mutableListOf<Row>()
+        groups.forEach { (name, items) ->
+            if (items.isNotEmpty()) {
+                out += Row.Header("$name  (${items.size})")
+                out += items
+            }
+        }
+        return out
+    }
+
+    /** „dnes 08:00“, „zítra 15:30“, jinak „so 24. 10. 08:00“ */
+    private fun niceTime(millis: Long): String {
+        val d = Date(millis)
+        val time = fmtTime.format(d)
+        return when {
+            millis >= dayStart(0) && millis < dayStart(1) -> "dnes $time"
+            millis >= dayStart(1) && millis < dayStart(2) -> "zítra $time"
+            millis >= dayStart(-1) && millis < dayStart(0) -> "včera $time"
+            else -> "${fmtShort.format(d)} $time"
+        }
+    }
+
+    private fun showMenu(anchor: View) {
+        val pm = PopupMenu(this, anchor)
+        pm.menu.add(0, 1, 0, "Nastavení (WhatsApp, e-mail)")
+        pm.menu.add(0, 2, 1, "Smazat hotové")
+        pm.setOnMenuItemClickListener {
+            when (it.itemId) {
+                1 -> openSettings()
+                2 -> {
+                    tasks.filter { t -> t.done }.forEach { t -> TaskStore.delete(this, t.id) }
+                    refresh()
+                }
+            }
+            true
+        }
+        pm.show()
     }
 
     private fun askNotificationPermission() {
@@ -350,57 +457,56 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(0, 1, 0, "Nastavení (WhatsApp, e-mail)")
-        menu.add(0, 2, 0, "Smazat hotové")
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            1 -> openSettings()
-            2 -> {
-                tasks.filter { it.done }.forEach { TaskStore.delete(this, it.id) }
-                refresh()
-            }
-            else -> return super.onOptionsItemSelected(item)
-        }
-        return true
-    }
-
     // ---------- Seznam ----------
 
     inner class TaskAdapter : BaseAdapter() {
-        override fun getCount() = tasks.size
-        override fun getItem(position: Int) = tasks[position]
-        override fun getItemId(position: Int) = tasks[position].id.toLong()
+        override fun getCount() = rows.size
+        override fun getItem(position: Int) = rows[position]
+        override fun getItemId(position: Int) = position.toLong()
+        override fun getViewTypeCount() = 2
+        override fun getItemViewType(position: Int) = if (rows[position] is Row.Header) 0 else 1
+        override fun isEnabled(position: Int) = rows[position] is Row.Item
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val row = rows[position]
+            if (row is Row.Header) {
+                val h = (convertView ?: LayoutInflater.from(parent.context)
+                    .inflate(R.layout.item_header, parent, false)) as TextView
+                h.text = row.text
+                h.setTextColor(ContextCompat.getColor(this@MainActivity,
+                    if (row.text.startsWith("Po termínu")) R.color.late else R.color.text2))
+                return h
+            }
+            val item = row as Row.Item
+            val t = item.task
             val v = convertView ?: LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_task, parent, false)
-            val t = tasks[position]
+            val card = v.findViewById<View>(R.id.card)
             val title = v.findViewById<TextView>(R.id.title)
             val sub = v.findViewById<TextView>(R.id.sub)
             val sub2 = v.findViewById<TextView>(R.id.sub2)
             val cb = v.findViewById<CheckBox>(R.id.done)
 
+            card.setBackgroundResource(if (item.late) R.drawable.card_late else R.drawable.card)
+            card.alpha = if (t.done) 0.55f else 1f
+
             title.text = t.title
             title.paintFlags = if (t.done) title.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
             else title.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-            v.alpha = if (t.done) 0.5f else 1f
 
-            val e = Date(t.eventMillis)
-            val late = !t.done && t.eventMillis < System.currentTimeMillis()
-            sub.text = "📅 ${fmtShort.format(e)} ${fmtTime.format(e)}" + if (late) "  · po termínu" else ""
+            sub.text = "🗓 " + niceTime(t.eventMillis)
+            sub.setTextColor(ContextCompat.getColor(this@MainActivity,
+                if (item.late) R.color.late else R.color.teal))
 
-            val icons = buildString {
-                if (t.notify) append(" 🔔")
-                if (t.whatsapp) append(" 💬")
-                if (t.email) append(" ✉️")
+            val channels = buildList {
+                if (t.notify) add("notifikace")
+                if (t.whatsapp) add("WhatsApp")
+                if (t.email) add("e-mail")
             }
-            sub2.text = if (icons.isEmpty()) "bez upozornění" else {
-                val r = Date(t.remindMillis)
-                "upomínka ${fmtShort.format(r)} ${fmtTime.format(r)} $icons"
+            sub2.text = when {
+                channels.isEmpty() -> "bez upomínky"
+                t.done -> "hotovo"
+                else -> "🔔 " + niceTime(t.remindMillis) + " · " + channels.joinToString(", ")
             }
 
             cb.setOnCheckedChangeListener(null)

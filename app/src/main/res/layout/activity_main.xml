@@ -1,46 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/bg">
 
-    <ListView
-        android:id="@+id/list"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:divider="@null"
-        android:paddingBottom="96dp"
-        android:paddingTop="8dp" />
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/empty"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:gravity="center"
-        android:padding="32dp"
-        android:text="Zatím žádné úkoly.\nPřidej první tlačítkem +\nnebo nadiktuj mikrofonem, např.\n„zítra v 8 zavolat do servisu“"
-        android:textSize="16sp" />
+        <!-- Hlavička -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Úkolníček"
+                    android:textColor="@color/text"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/summary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text2"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/menu"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Menu"
+                android:src="@android:drawable/ic_menu_more"
+                app:tint="@color/text" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ListView
+                android:id="@+id/list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="140dp"
+                android:scrollbarStyle="outsideOverlay"
+                android:listSelector="@android:color/transparent" />
+
+            <TextView
+                android:id="@+id/empty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:padding="32dp"
+                android:text="Žádné úkoly.\n\nPřidej první tlačítkem „Nový úkol“,\nnebo ho nadiktuj mikrofonem:\n„zítra v 8 zavolat do servisu“"
+                android:textColor="@color/text2"
+                android:textSize="16sp" />
+        </FrameLayout>
+    </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/voice"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginBottom="104dp"
-        android:layout_marginEnd="32dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="92dp"
         android:contentDescription="Nadiktovat úkol"
         android:src="@android:drawable/ic_btn_speak_now"
-        app:fabSize="mini" />
+        app:backgroundTint="@color/teal_light"
+        app:tint="@color/teal" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/add"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="24dp"
-        android:contentDescription="Přidat úkol"
-        android:src="@android:drawable/ic_input_add"
-        app:tint="@android:color/white" />
+        android:layout_margin="20dp"
+        android:text="Nový úkol"
+        android:textColor="#FFFFFF"
+        app:backgroundTint="@color/teal"
+        app:icon="@android:drawable/ic_input_add"
+        app:iconTint="#FFFFFF" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

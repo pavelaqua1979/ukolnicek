@@ -11,15 +11,24 @@ android {
         applicationId = "cz.paul.ukolnicek"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
+    }
+
+    // Pevný podpisový klíč v repozitáři -> každé nové APK jde nainstalovat přes starou verzi
+    signingConfigs {
+        create("ukolnicek") {
+            storeFile = file("ukolnicek.jks")
+            storePassword = "ukolnicek"
+            keyAlias = "ukolnicek"
+            keyPassword = "ukolnicek"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Podepsáno debug klíčem, aby šlo APK rovnou nainstalovat
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("ukolnicek")
         }
     }
     compileOptions {
